@@ -447,14 +447,14 @@ and page_table_content = [
     `Ptc of
       (page_table ref * page_table_key, na_key_serv) leftright
         Ocsigen_cache.Dlist.node option *
-      (server_params, Ocsigen_http_frame.result) service list ]
+      (server_params, Ocsigen_response.t) service list ]
 
 and naservice_table_content =
     (int (* generation (= number of reloads of sites
             after which that service has been created) *) *
        int ref option (* max_use *) *
        (float * float ref) option (* timeout and expiration date *) *
-       (server_params -> Ocsigen_http_frame.result Lwt.t) *
+       (server_params -> Ocsigen_response.t Lwt.t) *
        (page_table ref * page_table_key, na_key_serv) leftright
        Ocsigen_cache.Dlist.node option
        (* for limitation of number of dynamic coservices *)
@@ -539,7 +539,7 @@ and sitedata = {
   (* Limitation of the number of groups per site *)
   mutable remove_session_data : string -> unit;
   mutable not_bound_in_data_tables : string -> bool;
-  mutable exn_handler : exn -> Ocsigen_http_frame.result Lwt.t;
+  mutable exn_handler : exn -> Ocsigen_response.t Lwt.t;
   mutable unregistered_services : Url.path list;
   mutable unregistered_na_services : na_key_serv list;
   mutable max_volatile_data_sessions_per_group : int * bool;
@@ -743,3 +743,9 @@ end
 
 (** Raises exception on server, only relevant for client apps *)
 val client_html_file : unit -> string
+
+val unflatten_get_params :
+  (string * string) list -> (string * string list) list
+
+val flatten_get_params :
+  (string * string list) list -> (string * string) list
