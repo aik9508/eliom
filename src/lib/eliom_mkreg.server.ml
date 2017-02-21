@@ -392,18 +392,39 @@ let register_aux pages
                      let ri = Eliom_request_info.get_ri_sp sp in
                      Lwt.catch
                        (fun () ->
-                         Eliom_parameter.reconstruct_params
+                          let params =
+                            Ocsigen_request.get_params ri
+                            |> (List.filter
+                                  (fun (id, _) ->
+                                     id <> Eliom_common.naservice_name &&
+                                     id <> Eliom_common.naservice_num &&
+                                     id <> Eliom_common.get_numstate_param_name))
+                            |> Eliom_common.flatten_get_params
+                          in
+                          Eliom_parameter.reconstruct_params
                            ~sp
                            (S.get_params_type service)
-                           (Some (Lwt.return
-                                    (Eliom_common.flatten_get_params
-                                       (Ocsigen_request.get_params ri))))
+                           (Some (Lwt.return params))
                            (Some (Lwt.return []))
                            false
                            None
                          >>= fun g ->
                          let post_params =
-                           Eliom_request_info.get_post_params_sp sp
+                           match
+                             Eliom_request_info.get_post_params_sp sp
+                           with
+                           | Some post_params ->
+                             Some (
+                               let%lwt post_params = post_params in
+                               Lwt.return @@ List.filter
+                                 (fun (id, _) ->
+                                    id <> Eliom_common.naservice_name &&
+                                    id <> Eliom_common.naservice_num &&
+                                    id <> Eliom_common.post_numstate_param_name)
+                                 post_params
+                             )
+                           | None ->
+                             None
                          in
                          let files = Eliom_request_info.get_files_sp sp in
                          Eliom_parameter.reconstruct_params
