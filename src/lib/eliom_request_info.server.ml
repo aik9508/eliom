@@ -309,6 +309,8 @@ let get_ri () =
   let sp = Eliom_common.get_sp () in
   get_ri_sp sp
 
+let get_tmp_filename fi = fi.Ocsigen_extensions.tmp_filename
+
 let get_sitedata () =
   find_sitedata "get_sitedata"
 

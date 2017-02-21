@@ -114,6 +114,9 @@ val get_expired_service_sessions :
  *)
 val get_previous_extension_error_code : unit -> int
 
+(** returns the filename used by Ocsigen for the uploaded file. *)
+val get_tmp_filename : Ocsigen_extensions.file_info -> string
+
 (** returns the root of the site. *)
 val get_site_dir : unit -> Eliom_lib.Url.path
 
