@@ -26,8 +26,7 @@ open Lwt
 
 (* module Html_content = Ocsigen_senders.Make_XML_Content(Xml)(Html.F) *)
 
-(*****************************************************************************)
-(* Exception handler for the site                                            *)
+(* Exception handler for the site *)
 
 let def_handler e = fail e
 
@@ -36,8 +35,6 @@ let handle_site_exn exn info sitedata =
   Lwt.with_value Eliom_common.sp_key (Some sp)
     (fun () -> sitedata.Eliom_common.exn_handler exn)
 
-
-(*****************************************************************************)
 (* Update cookie tables *)
 let update_cookie_table ?now sitedata (ci, sci) =
   let now = match now with
@@ -229,6 +226,20 @@ let handled_method = function
   | `DELETE -> true
   | _ -> false
 
+let do_redirection header_id status uri =
+  Ocsigen_extensions.Ext_found
+    (fun () ->
+      let response =
+        let status = `Temporary_redirect
+        and headers =
+          Cohttp.Header.init_with
+            Http_headers.(name_to_string header_id)
+            uri
+        in
+        Cohttp.Response.make ~status ~headers ()
+      in
+      Lwt.return (Ocsigen_response.make ~response ()))
+
 let gen is_eliom_extension sitedata = function
 | Ocsigen_extensions.Req_found _ ->
   Lwt.return Ocsigen_extensions.Ext_do_nothing
@@ -380,31 +391,19 @@ let gen is_eliom_extension sitedata = function
                (*        (fun () -> *)
                (*          Lwt.return *)
                (*            (Ocsigen_http_frame.Result.update r ~code:500 ()))) *)
-               (* | Eliom_common.Eliom_404 -> *)
-               (*   Lwt.return *)
-               (*     (Ocsigen_extensions.Ext_next previous_extension_err) *)
-               (* | Eliom_common.Eliom_retry_with a -> gen_aux a *)
-               (* | Eliom_common.Eliom_do_redirection uri -> *)
-               (*   let e = Ocsigen_http_frame.Result.empty () in *)
-               (*   Lwt.return *)
-               (*     (Ocsigen_extensions.Ext_found *)
-               (*        (fun () -> *)
-               (*          Lwt.return *)
-               (*            (Ocsigen_http_frame.Result.update e *)
-               (*             ~code:307 *)
-               (*             ~location:(Some uri) ()))) *)
-               (* | Eliom_common.Eliom_do_half_xhr_redirection uri -> *)
-               (*   Lwt.return *)
-               (*     (Ocsigen_extensions.Ext_found *)
-               (*        (fun () -> *)
-               (*          let empty_result = Ocsigen_http_frame.Result.empty () in *)
-               (*          Lwt.return *)
-               (*            (Ocsigen_http_frame.Result.update empty_result *)
-               (*               ~headers: *)
-               (*                (Http_headers.add *)
-               (*                  (Http_headers.name *)
-               (*                     Eliom_common.half_xhr_redir_header) *)
-               (*                  uri (Ocsigen_http_frame.Result.headers empty_result)) ()))) *)
+               | Eliom_common.Eliom_404 ->
+                 Lwt.return
+                   (Ocsigen_extensions.Ext_next previous_extension_err)
+               | Eliom_common.Eliom_retry_with a -> gen_aux a
+               | Eliom_common.Eliom_do_redirection uri ->
+                 Lwt.return
+                   (do_redirection Http_headers.location `Temporary_redirect uri)
+               | Eliom_common.Eliom_do_half_xhr_redirection uri ->
+                 Lwt.return @@
+                 do_redirection
+                   (Http_headers.name Eliom_common.half_xhr_redir_header)
+                   `OK
+                   uri
                | e -> fail e)
   in
   gen_aux (ri, si, all_cookie_info, all_tab_cookie_info, user_tab_cookies)
