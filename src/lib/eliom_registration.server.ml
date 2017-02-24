@@ -339,15 +339,15 @@ module Action_base = struct
       ();
     res
 
-  let update_request_0 ri si cookies =
-    (* FIXME : cookies *)
+  let update_request ri si cookies_override =
     let ri =
       Ocsigen_request.update
         ri
-        ~post_data:None
+        ~post_data_override:None
         ~request:
           { (Ocsigen_request.request ri)
             with Cohttp.Request.meth = `GET }
+        ~cookies_override
     and uri =
       Uri.with_query
         (Ocsigen_request.uri ri)
@@ -451,7 +451,7 @@ module Action_base = struct
            si.Eliom_common.si_all_get_but_nl);
         (*VVV Also put all_cookie_info in this, to avoid
           update_cookie_table and get_cookie_info (?) *)
-        let ri = update_request_0 ri.request_info si (lazy ric) in
+        let ri = update_request ri.request_info si ric in
         let%lwt () =
           Eliommod_pagegen.update_cookie_table
             sitedata

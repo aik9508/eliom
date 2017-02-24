@@ -136,7 +136,7 @@ let drop_most_params ri si =
   let request_info =
     Ocsigen_request.update
       ri.request_info
-      ~post_data:None
+      ~post_data_override:None
       ~request:
         { (Ocsigen_request.request ri.request_info)
           with Cohttp.Request.meth = `GET }
@@ -209,7 +209,7 @@ let get_page
                             request_info =
                               Ocsigen_request.update
                                 ri.request_info
-                                ~post_data:None
+                                ~post_data_override:None
                                 ~request:
                                   { (Ocsigen_request.request
                                        ri.request_info)
