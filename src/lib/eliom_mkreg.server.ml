@@ -167,6 +167,18 @@ let send_with_cookies
   in
   Lwt.return (Ocsigen_response.update result ~cookies ~response)
 
+let filter_magic_params_get =
+  List.filter @@ fun (id, _) ->
+  id <> Eliom_common.naservice_name &&
+  id <> Eliom_common.naservice_num &&
+  id <> Eliom_common.get_numstate_param_name
+
+let filter_magic_params_post =
+  Eliom_lib.Option.map @@ Lwt.map @@ List.filter @@ fun (id, _) ->
+  id <> Eliom_common.naservice_name &&
+  id <> Eliom_common.naservice_num &&
+  id <> Eliom_common.post_numstate_param_name
+
 let register_aux pages
       ?options
       ?charset
@@ -225,13 +237,15 @@ let register_aux pages
                           sgpt
                           (Some (Lwt.return
                                    (Eliom_common.flatten_get_params
-                                      (Ocsigen_request.get_params ri))))
+                                      (filter_magic_params_get
+                                         (Ocsigen_request.get_params ri)))))
                           (Some (Lwt.return []))
                           nosuffixversion
                           suff
                         >>= fun g ->
                         let post_params =
-                          Eliom_request_info.get_post_params_sp sp
+                          filter_magic_params_post
+                            (Eliom_request_info.get_post_params_sp sp)
                         in
                         let files =
                           Eliom_request_info.get_files_sp sp
@@ -394,11 +408,7 @@ let register_aux pages
                        (fun () ->
                           let params =
                             Ocsigen_request.get_params ri
-                            |> (List.filter
-                                  (fun (id, _) ->
-                                     id <> Eliom_common.naservice_name &&
-                                     id <> Eliom_common.naservice_num &&
-                                     id <> Eliom_common.get_numstate_param_name))
+                            |> filter_magic_params_get
                             |> Eliom_common.flatten_get_params
                           in
                           Eliom_parameter.reconstruct_params
@@ -410,21 +420,8 @@ let register_aux pages
                            None
                          >>= fun g ->
                          let post_params =
-                           match
-                             Eliom_request_info.get_post_params_sp sp
-                           with
-                           | Some post_params ->
-                             Some (
-                               let%lwt post_params = post_params in
-                               Lwt.return @@ List.filter
-                                 (fun (id, _) ->
-                                    id <> Eliom_common.naservice_name &&
-                                    id <> Eliom_common.naservice_num &&
-                                    id <> Eliom_common.post_numstate_param_name)
-                                 post_params
-                             )
-                           | None ->
-                             None
+                           filter_magic_params_post
+                             (Eliom_request_info.get_post_params_sp sp)
                          in
                          let files = Eliom_request_info.get_files_sp sp in
                          Eliom_parameter.reconstruct_params
