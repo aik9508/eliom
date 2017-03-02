@@ -485,8 +485,10 @@ end = struct
 
   let wait_closed_connection () =
     let ri = Eliom_request_info.get_ri () in
-    (* FIXME COHTTP TRANSITION *)
-    (* let%lwt () = Ocsigen_extensions.Ocsigen_request_info.connection_closed ri in *)
+    let%lwt () =
+      Ocsigen_request.connection_closed
+        (Eliom_request_info.get_ri ())
+    in
     [%lwt raise Connection_closed]
 
   (* register the service handler.hd_service *)
