@@ -133,20 +133,17 @@ let unflatten_get_params l =
        l)
 
 let drop_most_params ri si =
-  let request_info =
-    Ocsigen_request.update
-      ri.request_info
-      ~post_data_override:None
-      ~request:
-        { (Ocsigen_request.request ri.request_info)
-          with Cohttp.Request.meth = `GET }
-  and uri =
-    Uri.with_query
-      (Ocsigen_request.uri ri.request_info)
-      (unflatten_get_params
-         si.Eliom_common.si_other_get_params)
-  in
-  Ocsigen_request.update_url uri request_info
+  Ocsigen_request.update ri
+    ~post_data_override:None
+    ~request:
+      { (Ocsigen_request.request ri)
+        with Cohttp.Request.meth = `GET }
+    ~uri:(
+      Uri.with_query
+        (Ocsigen_request.uri ri)
+        (unflatten_get_params
+           si.Eliom_common.si_other_get_params)
+    )
 
 let get_page
     now
@@ -237,7 +234,9 @@ let get_page
                     Eliom_common.eliom_link_too_old
                     true;
                   fail (Eliom_common.Eliom_retry_with
-                          ({ri with request_info = drop_most_params ri si},
+                          ({ri with
+                            request_info =
+                              drop_most_params ri.request_info si},
                            {si with
                             Eliom_common.si_nonatt_info=
                               Eliom_common.RNa_no;
@@ -420,7 +419,8 @@ let make_naservice
        true;
      Eliom_common.get_session_info
        { ri with
-         Ocsigen_extensions.request_info = drop_most_params ri si }
+         Ocsigen_extensions.request_info =
+           drop_most_params ri.request_info si }
        si.Eliom_common.si_previous_extension_error
      >>= fun (ri', si', previous_tab_cookies_info) ->
      Lwt.fail (Eliom_common.Eliom_retry_with (ri',
@@ -438,7 +438,8 @@ let make_naservice
        true;
      Eliom_common.get_session_info
        { ri with
-         request_info = drop_most_params ri si }
+         Ocsigen_extensions.request_info =
+           drop_most_params ri.request_info si }
        si.Eliom_common.si_previous_extension_error
      >>= fun (ri', si', previous_tab_cookies_info) ->
      Lwt.fail (Eliom_common.Eliom_retry_with (ri', si',

@@ -340,21 +340,22 @@ module Action_base = struct
     res
 
   let update_request ri si cookies_override =
-    let ri =
-      Ocsigen_request.update
-        ri
-        ~post_data_override:None
-        ~request:
-          { (Ocsigen_request.request ri)
-            with Cohttp.Request.meth = `GET }
-        ~cookies_override
-    and uri =
-      Uri.with_query
-        (Ocsigen_request.uri ri)
-        (Eliom_common.unflatten_get_params
-           si.Eliom_common.si_other_get_params)
+    let get_params_override =
+      Eliom_common.unflatten_get_params
+        si.Eliom_common.si_other_get_params
     in
-    Ocsigen_request.update_url uri ri
+    Ocsigen_request.update ri
+      ~get_params_override
+      ~post_data_override:None
+      ~request:
+        { (Ocsigen_request.request ri)
+          with Cohttp.Request.meth = `GET }
+      ~cookies_override
+      ~uri:(
+        Uri.with_query
+          (Ocsigen_request.uri ri)
+          get_params_override
+      )
 
   let send
       ?(options = `Reload) ?charset ?(code = 204)

@@ -167,18 +167,6 @@ let send_with_cookies
   in
   Lwt.return (Ocsigen_response.update result ~cookies ~response)
 
-let filter_magic_params_get =
-  List.filter @@ fun (id, _) ->
-  id <> Eliom_common.naservice_name &&
-  id <> Eliom_common.naservice_num &&
-  id <> Eliom_common.get_numstate_param_name
-
-let filter_magic_params_post =
-  Eliom_lib.Option.map @@ Lwt.map @@ List.filter @@ fun (id, _) ->
-  id <> Eliom_common.naservice_name &&
-  id <> Eliom_common.naservice_num &&
-  id <> Eliom_common.post_numstate_param_name
-
 let register_aux pages
       ?options
       ?charset
@@ -237,15 +225,13 @@ let register_aux pages
                           sgpt
                           (Some (Lwt.return
                                    (Eliom_common.flatten_get_params
-                                      (filter_magic_params_get
-                                         (Ocsigen_request.get_params ri)))))
+                                      (Ocsigen_request.get_params ri))))
                           (Some (Lwt.return []))
                           nosuffixversion
                           suff
                         >>= fun g ->
                         let post_params =
-                          filter_magic_params_post
-                            (Eliom_request_info.get_post_params_sp sp)
+                          Eliom_request_info.get_post_params_sp sp
                         in
                         let files =
                           Eliom_request_info.get_files_sp sp
@@ -406,22 +392,18 @@ let register_aux pages
                      let ri = Eliom_request_info.get_ri_sp sp in
                      Lwt.catch
                        (fun () ->
-                          let params =
-                            Ocsigen_request.get_params ri
-                            |> filter_magic_params_get
-                            |> Eliom_common.flatten_get_params
-                          in
-                          Eliom_parameter.reconstruct_params
+                         Eliom_parameter.reconstruct_params
                            ~sp
                            (S.get_params_type service)
-                           (Some (Lwt.return params))
+                           (Some (Lwt.return
+                                    (Eliom_common.flatten_get_params
+                                       (Ocsigen_request.get_params ri))))
                            (Some (Lwt.return []))
                            false
                            None
                          >>= fun g ->
                          let post_params =
-                           filter_magic_params_post
-                             (Eliom_request_info.get_post_params_sp sp)
+                           Eliom_request_info.get_post_params_sp sp
                          in
                          let files = Eliom_request_info.get_files_sp sp in
                          Eliom_parameter.reconstruct_params

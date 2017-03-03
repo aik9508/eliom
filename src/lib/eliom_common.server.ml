@@ -1231,42 +1231,30 @@ let get_session_info req previous_extension_err =
     (sservice_cookies, sdata_cookies, spersistent_cookies)
   in
 
-  let get_params_string, url_string =
-(*204FORMS* old implementation of forms with 204 and change_page_event
-    if internal_form
-    then
-      let gps = Url.make_encoded_parameters all_get_params in
-      let uri = ri.Ocsigen_extensions.ri_full_path_string in
-      ((if gps = "" then None else Some gps),
-       String.may_append uri ~sep:"?" gps)
-    else *)
-    Ocsigen_request.query ri,
-    Uri.to_string (Ocsigen_request.uri ri)
-  in
-
-  let sess =
+  let ri, sess =
 (*VVV 2011/02/15 TODO: I think we'd better not change ri here.
   Keep ri for original values and use si for Eliom's values?
 *)
-    (* FIXME Cohttp transition : do we need to update ri ? *)
-    (* Ocsigen_request.update ri *)
-    (*   ~url_string *)
-    (*   ~get_params_string *)
-    (*   ~meth:(if (Ocsigen_request.meth ri) = Ocsigen_http_frame.Http_header.HEAD *)
-    (*             || to_be_considered_as_get *)
-    (*          then Ocsigen_http_frame.Http_header.GET *)
-    (*          else Ocsigen_request.meth ri) *)
-    (*    (\* Here we modify ri, instead of putting service parameters in si. *)
-    (*       Thus it works better after actions: *)
-    (*       the request can be taken by other extensions, with new parameters. *)
-    (*       Initial parameters are kept in si. *)
-    (*    *\) *)
-    (*   ~get_params:(lazy get_params) *)
-    (*   ~post_params:(if no_post_param then None *)
-    (*                 else Some (fun _ -> Lwt.return post_params)) *)
-    (*   ~files:(if no_file_param then None *)
-    (*           else Some (fun _ -> Lwt.return file_params)) *)
-    (*   (), *)
+    Ocsigen_request.update ri
+      ~request:
+        (let request = Ocsigen_request.request ri in
+         if
+           Cohttp.Request.meth request = `HEAD || to_be_considered_as_get
+         then
+           { (Ocsigen_request.request ri) with meth = `GET }
+         else
+           Ocsigen_request.request ri)
+      (* Here we modify ri, instead of putting service parameters in
+         si.  Thus it works better after actions: the request can be
+         taken by other extensions, with new parameters.  Initial
+         parameters are kept in si.  *)
+      ~get_params_override:(unflatten_get_params get_params)
+      ~post_data_override:(
+        if no_post_param then
+          None
+        else
+          Some (post_params, file_params)
+      ),
     {si_service_session_cookies= service_cookies;
      si_data_session_cookies= data_cookies;
      si_persistent_session_cookies= persistent_cookies;
@@ -1375,18 +1363,23 @@ let bus_unwrap_id : unwrap_id = Eliom_wrap.id_of_int bus_unwrap_id_int
 
 (* HACK: Remove the 'nl_get_appl_parameter' used to avoid confusion
    between XHR and classical request in App. *)
-let patch_request_info ({Ocsigen_extensions.request_info} as req) =
+let patch_request_info ({Ocsigen_extensions.request_info} as r) =
   let u = Ocsigen_request.uri request_info in
   match Uri.get_query_param u nl_get_appl_parameter with
   | Some _ ->
-    { req with
+    { r with
       Ocsigen_extensions.request_info =
-        Ocsigen_request.update_url
-          (Uri.remove_query_param u nl_get_appl_parameter)
+        let get_params_override =
+          List.remove_assoc nl_get_appl_parameter
+            (Ocsigen_request.get_params request_info)
+        in
+        Ocsigen_request.update
+          ~get_params_override
+          ~uri:(Uri.remove_query_param u nl_get_appl_parameter)
           request_info
     }
   | None ->
-    req
+    r
 
 
 let get_site_dir sitedata = sitedata.site_dir
