@@ -307,7 +307,7 @@ let gen is_eliom_extension sitedata = function
                  sitedata
                  all_cookie_info
                  all_user_cookies
-               >>= fun all_new_cookies ->
+               >>= fun cookies ->
                let res =
                  match
                    Ocsigen_request.header
@@ -321,13 +321,13 @@ let gen is_eliom_extension sitedata = function
                        Cohttp.Header.add
                          (Cohttp.Response.headers a_response)
                          Eliom_common_base.set_cookie_substitutes_header_name
-                         (Eliommod_cookies.cookieset_to_json all_new_cookies)
+                         (Eliommod_cookies.cookieset_to_json cookies)
                      in
                      { a_response with Cohttp.Response.headers }
-                   and cookies = all_new_cookies in
+                   in
                    Ocsigen_response.update ~response ~cookies res
                  | None ->
-                   res
+                   Ocsigen_response.update ~cookies res
                in
                try
                  Polytables.get
