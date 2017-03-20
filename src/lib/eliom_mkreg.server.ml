@@ -88,7 +88,7 @@ let check_after name result =
       (Http_headers.name Eliom_common_base.appl_name_header_name)
   with
   | Some appl_name ->
-    appl_name = name
+    not (appl_name = name)
   | None ->
     (* not an application content *)
     true

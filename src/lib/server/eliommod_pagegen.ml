@@ -230,8 +230,7 @@ let do_redirection header_id status uri =
   Ocsigen_extensions.Ext_found
     (fun () ->
       let response =
-        let status = `Temporary_redirect
-        and headers =
+        let headers =
           Cohttp.Header.init_with
             Http_headers.(name_to_string header_id)
             uri
@@ -396,8 +395,11 @@ let gen is_eliom_extension sitedata = function
                    (Ocsigen_extensions.Ext_next previous_extension_err)
                | Eliom_common.Eliom_retry_with a -> gen_aux a
                | Eliom_common.Eliom_do_redirection uri ->
-                 Lwt.return
-                   (do_redirection Http_headers.location `Temporary_redirect uri)
+                 Lwt.return @@
+                 do_redirection
+                   Http_headers.location
+                   `Temporary_redirect
+                   uri
                | Eliom_common.Eliom_do_half_xhr_redirection uri ->
                  Lwt.return @@
                  do_redirection
