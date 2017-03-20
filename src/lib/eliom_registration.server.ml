@@ -164,7 +164,7 @@ module Html_base = struct
 
   let out =
     let encode x = fst (Xml_print.Utf8.normalize_html x) in
-    Fmt.pp_elt ~encode ()
+    Fmt.pp ~encode ()
 
   let send ?options ?charset ?code ?content_type ?headers c =
     let status = Eliom_lib.Option.map Cohttp.Code.status_of_code code
@@ -1306,7 +1306,7 @@ module App_base (App_param : Eliom_registration_sigs.APP_PARAM) = struct
 
   let out =
     let encode x = fst (Xml_print.Utf8.normalize_html x) in
-    Fmt.pp_elt ~encode ()
+    Fmt.pp ~encode ()
 
   let send ?(options = default_appl_service_options) ?charset ?code
       ?content_type ?headers content =
