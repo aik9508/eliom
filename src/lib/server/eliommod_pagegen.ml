@@ -232,7 +232,7 @@ let do_redirection header_id status uri =
       let response =
         let headers =
           Cohttp.Header.init_with
-            Http_headers.(name_to_string header_id)
+            Ocsigen_header.Name.(to_string header_id)
             uri
         in
         Cohttp.Response.make ~status ~headers ()
@@ -311,7 +311,7 @@ let gen is_eliom_extension sitedata = function
                  match
                    Ocsigen_request.header
                      ri.Ocsigen_extensions.request_info
-                     (Http_headers.name
+                     (Ocsigen_header.Name.of_string
                         Eliom_common_base.cookie_substitutes_header_name)
                  with
                  | Some _ ->
@@ -397,13 +397,14 @@ let gen is_eliom_extension sitedata = function
                | Eliom_common.Eliom_do_redirection uri ->
                  Lwt.return @@
                  do_redirection
-                   Http_headers.location
+                   Ocsigen_header.Name.location
                    `Temporary_redirect
                    uri
                | Eliom_common.Eliom_do_half_xhr_redirection uri ->
                  Lwt.return @@
                  do_redirection
-                   (Http_headers.name Eliom_common.half_xhr_redir_header)
+                   (Ocsigen_header.Name.of_string
+                      Eliom_common.half_xhr_redir_header)
                    `OK
                    uri
                | e -> fail e)

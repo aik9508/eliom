@@ -985,7 +985,7 @@ let get_session_info req previous_extension_err =
         with Not_found ->
           (match
              Ocsigen_request.header ri
-               (Http_headers.name tab_cookies_header_name)
+               (Ocsigen_header.Name.of_string tab_cookies_header_name)
            with
            | Some tc ->
              let tc = [%derive.of_json: (string * string) list] tc in
@@ -1004,7 +1004,7 @@ let get_session_info req previous_extension_err =
   let cpi =
     match
       Ocsigen_request.header ri
-        (Http_headers.name tab_cpi_header_name)
+        (Ocsigen_header.Name.of_string tab_cpi_header_name)
     with
     | Some cpi ->
       Some ([%derive.of_json: cpi] cpi)
@@ -1015,7 +1015,7 @@ let get_session_info req previous_extension_err =
   let epd = lazy (
     match
       Ocsigen_request.header ri
-        (Http_headers.name expecting_process_page_name)
+        (Ocsigen_header.Name.of_string expecting_process_page_name)
     with
     | Some epd ->
       [%derive.of_json: bool] epd
@@ -1076,7 +1076,7 @@ let get_session_info req previous_extension_err =
   let browser_cookies =
     match
       Ocsigen_request.header ri
-        (Http_headers.name cookie_substitutes_header_name)
+        (Ocsigen_header.Name.of_string cookie_substitutes_header_name)
     with
     | Some tc ->
       List.fold_left (fun t (k,v) -> CookiesTable.add k v t)

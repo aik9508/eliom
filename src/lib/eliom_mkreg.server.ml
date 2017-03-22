@@ -29,7 +29,7 @@ type ('options,'page,'result) param =
         ?charset:string ->
         ?code: int ->
         ?content_type:string ->
-        ?headers: Http_headers.t ->
+        ?headers: Ocsigen_header.t ->
         'page ->
         Ocsigen_response.t Lwt.t;
 
@@ -85,7 +85,8 @@ let check_before name service =
 let check_after name result =
   match
     Ocsigen_response.header result
-      (Http_headers.name Eliom_common_base.appl_name_header_name)
+      (Ocsigen_header.Name.of_string
+         Eliom_common_base.appl_name_header_name)
   with
   | Some appl_name ->
     not (appl_name = name)

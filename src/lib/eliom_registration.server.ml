@@ -20,63 +20,6 @@
 
 open Lwt.Infix
 
-let list_flat_map f l = List.flatten (List.map f l)
-
-let parse_star a =
-  if a = "*" then
-    None
-  else
-    Some a
-
-let parse_mime_type a =
-  let b, c = Eliom_lib.String.sep '/' a in
-  parse_star b, parse_star c
-
-let parse_extensions parse_name s =
-  try
-    let a, b = Eliom_lib.String.sep ';' s in
-    parse_name a,
-    List.map (Eliom_lib.String.sep '=') (Eliom_lib.String.split ';' b)
-  with _ ->
-    parse_name s, []
-
-let parse_list_with_extensions parse_name s =
-  let splitted = List.flatten (List.map (Eliom_lib.String.split ',') s) in
-  List.map (parse_extensions parse_name) splitted
-
-let parse_accept s =
-  try
-    let l = parse_list_with_extensions parse_mime_type s in
-    let change_quality (a, l) =
-      try
-        let q, ll = Eliom_lib.List.assoc_remove "q" l in
-        a, Some (float_of_string q), ll
-      with _ ->
-        a, None, l
-    in
-    List.map change_quality l
-  with _ -> []
-
-let choose_content_type default alt =
-  try
-    List.find
-      (fun content_type ->
-         let f = function
-           | (Some a, Some b), _, _ ->
-             a ^ "/" ^ b = content_type
-           | _ ->
-             false
-         and accept =
-           parse_accept @@
-           Ocsigen_request.header_multi
-             (Eliom_request_info.get_ri ())
-             Http_headers.accept
-         in
-         List.exists f accept)
-      (default :: alt)
-  with Not_found ->
-    default
-
 let headers_with_content_type ?charset ?content_type headers =
   match content_type with
   | Some content_type ->
@@ -89,22 +32,16 @@ let headers_with_content_type ?charset ?content_type headers =
     in
     Cohttp.Header.replace
       headers
-      Http_headers.(name_to_string content_type)
+      Ocsigen_header.Name.(to_string content_type)
       (Printf.sprintf "%s; charset=%s" content_type charset)
   | None ->
     headers
-
-let headers_of_headers_option = function
-  | Some headers ->
-    headers
-  | None ->
-    Cohttp.Header.init ()
 
 let result_of_content ?charset ?content_type ?headers ?status body =
   let headers =
     match content_type with
     | Some content_type ->
-      let headers = headers_of_headers_option headers in
+      let headers = Ocsigen_header.of_option headers in
       Some (headers_with_content_type ?charset ~content_type headers)
     | None ->
       headers
@@ -147,12 +84,22 @@ let cast_unknown_content_kind (x:unknown_content kind) : 'a kind =
 
 let cast_http_result = Result_types.cast_result
 
-module Html_base = struct
+let content_type_html = function
+  | Some content_type ->
+    content_type
+  | None ->
+    let accept =
+      Ocsigen_request.header_multi
+        (Eliom_request_info.get_ri ())
+        Ocsigen_header.Name.accept
+    in
+    let accept = Ocsigen_header.Accept.parse accept in
+    Ocsigen_header.Content_type.choose
+      accept
+      Eliom_content.Html.D.Info.content_type
+      Eliom_content.Html.D.Info.alternative_content_types
 
-  module Fmt =
-    Xml_print.Make_typed_fmt
-      (Eliom_content.Xml)
-      (Eliom_content.Html.D)
+module Html_base = struct
 
   type page = Html_types.html Eliom_content.Html.elt
   type options = unit
@@ -164,18 +111,11 @@ module Html_base = struct
 
   let out =
     let encode x = fst (Xml_print.Utf8.normalize_html x) in
-    Fmt.pp ~encode ()
+    Eliom_content.Html.Printer.pp ~encode ()
 
   let send ?options ?charset ?code ?content_type ?headers c =
     let status = Eliom_lib.Option.map Cohttp.Code.status_of_code code
-    and content_type =
-      match content_type with
-      | Some content_type ->
-        content_type
-      | None ->
-        choose_content_type
-          Eliom_content.Html.D.Info.content_type
-          Eliom_content.Html.D.Info.alternative_content_types
+    and content_type = content_type_html content_type
     and body = Cohttp_lwt_body.of_string (Format.asprintf "%a" out c) in
     result_of_content ?charset ?headers ?status ~content_type body
 
@@ -193,14 +133,9 @@ module Flow5_base = struct
 
   let send_appl_content = Eliom_service.XNever
 
-  module Fmt =
-    Xml_print.Make_typed_fmt
-      (Eliom_content.Xml)
-      (Eliom_content.Html.D)
-
   let out =
     let encode x = fst (Xml_print.Utf8.normalize_html x) in
-    Fmt.pp_elt ~encode ()
+    Eliom_content.Html.Printer.pp_elt ~encode ()
 
   let body l =
     Lwt_stream.of_list l
@@ -209,22 +144,13 @@ module Flow5_base = struct
 
   let send ?options ?charset ?code ?content_type ?headers c =
     let status = Eliom_lib.Option.map Cohttp.Code.status_of_code code
-    and content_type =
-      match content_type with
-      | Some content_type ->
-        content_type
-      | None ->
-        choose_content_type
-          Eliom_content.Html.D.Info.content_type
-          Eliom_content.Html.D.Info.alternative_content_types
+    and content_type = content_type_html content_type
     and body = body c in
     result_of_content ?charset ?headers ?status ~content_type body
 
 end
 
 module Flow5 = Eliom_mkreg.Make(Flow5_base)
-
-let (<-<) h (n, v) = Http_headers.replace n v h
 
 (* FIXME COHTTP TRANSITION
 
@@ -241,17 +167,22 @@ let gmtdate d =
     Lwt_log.ign_debug "no +"; x
 
 let add_cache_header cache headers =
+  let (<-<) h (n, v) =
+    Cohttp.Header.replace h
+      (Ocsigen_header.Name.to_string n)
+      v
+  in
   match cache with
   | None -> headers
   | Some 0 ->
     headers
-    <-< (Http_headers.cache_control, "no-cache")
-    <-< (Http_headers.expires, "0")
+    <-< (Ocsigen_header.Name.cache_control, "no-cache")
+    <-< (Ocsigen_header.Name.expires, "0")
   | Some duration ->
     headers
-    <-< (Http_headers.cache_control,
+    <-< (Ocsigen_header.Name.cache_control,
          "max-age: " ^ string_of_int duration)
-    <-< (Http_headers.expires,
+    <-< (Ocsigen_header.Name.expires,
          gmtdate (Unix.time () +. float_of_int duration))
 
 
@@ -271,7 +202,7 @@ module String_base = struct
     and body = Cohttp_lwt_body.of_string c
     and headers =
       add_cache_header options
-        (headers_of_headers_option headers)
+        (Ocsigen_header.of_option headers)
     in
     result_of_content ?charset ?status ~content_type ~headers body
 
@@ -363,7 +294,7 @@ module Action_base = struct
     let user_cookies = Eliom_request_info.get_user_cookies () in
     match options with
     | `NoReload ->
-      let headers = headers_of_headers_option headers in
+      let headers = Ocsigen_header.of_option headers in
       let headers =
         match Eliom_request_info.get_sp_client_appl_name () with
         | Some anr ->
@@ -580,7 +511,7 @@ module File_base = struct
     | Ocsigen_local_files.RFile fname ->
       let%lwt response, body =
         let headers =
-          headers_of_headers_option headers
+          Ocsigen_header.of_option headers
           |> add_cache_header options
           |> headers_with_content_type ?charset ?content_type
         in
@@ -1299,14 +1230,9 @@ module App_base (App_param : Eliom_registration_sigs.APP_PARAM) = struct
   let send_appl_content =
     Eliom_service.XSame_appl (App_param.application_name, None)
 
-  module Fmt =
-    Xml_print.Make_typed_fmt
-      (Eliom_content.Xml)
-      (Eliom_content.Html.D)
-
   let out =
     let encode x = fst (Xml_print.Utf8.normalize_html x) in
-    Fmt.pp ~encode ()
+    Eliom_content.Html.Printer.pp ~encode ()
 
   let send ?(options = default_appl_service_options) ?charset ?code
       ?content_type ?headers content =
@@ -1337,7 +1263,7 @@ module App_base (App_param : Eliom_registration_sigs.APP_PARAM) = struct
     in
 
     let headers =
-      let h = headers_of_headers_option headers in
+      let h = Ocsigen_header.of_option headers in
       let h =
         Cohttp.Header.replace h
           Eliom_common_base.appl_name_header_name
@@ -1353,15 +1279,7 @@ module App_base (App_param : Eliom_registration_sigs.APP_PARAM) = struct
       with Not_found ->
         h
     and status = Eliom_lib.Option.map Cohttp.Code.status_of_code code
-    and content_type =
-      match content_type with
-      | Some content_type ->
-        content_type
-      | None ->
-        choose_content_type
-          Eliom_content.Html.D.Info.content_type
-          Eliom_content.Html.D.Info.alternative_content_types
-    in
+    and content_type = content_type_html content_type in
     result_of_content ?charset ?status ~content_type ~headers body
 
 end
@@ -1489,7 +1407,7 @@ module String_redirection_base = struct
 
   let send ?(options = `Found) ?charset ?code
       ?content_type ?headers uri =
-    let headers = headers_of_headers_option headers
+    let headers = Ocsigen_header.of_option headers
     and header_id, status =
       (* We decide the kind of redirection we do. If the request is an
          XHR done by a client side Eliom program expecting a process
@@ -1498,7 +1416,7 @@ module String_redirection_base = struct
       if not (Eliom_request_info.expecting_process_page ()) then
         (* the browser did not ask application eliom data, we send a
            regular redirection *)
-        Http_headers.(name_to_string location),
+        Ocsigen_header.Name.(to_string location),
         status_of_redirection_options options code
       else
         Eliom_common.half_xhr_redir_header, `OK
@@ -1535,7 +1453,7 @@ module Redirection_base = struct
   let send ?(options = `Found) ?charset ?code
       ?content_type ?headers (Redirection service) =
     let uri = Eliom_uri.make_string_uri ~service ()
-    and headers = headers_of_headers_option headers in
+    and headers = Ocsigen_header.of_option headers in
     (* Now we decide the kind of redirection we do.
 
        If the request is an xhr done by a client side Eliom program
@@ -1559,7 +1477,7 @@ module Redirection_base = struct
       let status = status_of_redirection_options options code
       and headers =
         Cohttp.Header.replace headers
-          Http_headers.(name_to_string location)
+          Ocsigen_header.Name.(to_string location)
           uri
       in
       result_of_content ?charset ?content_type ~status ~headers

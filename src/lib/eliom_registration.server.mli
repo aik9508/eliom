@@ -277,7 +277,7 @@ module Redirection : sig
     ?charset      : string ->
     ?code         : int ->
     ?content_type : string ->
-    ?headers      : Http_headers.t ->
+    ?headers      : Ocsigen_header.t ->
     _ page ->
     _ kind Lwt.t
 

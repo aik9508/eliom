@@ -40,7 +40,7 @@ let get_user_agent () =
   match
     Ocsigen_request.header
       sp.Eliom_common.sp_request.request_info
-      Http_headers.user_agent
+      Ocsigen_header.Name.user_agent
   with
   | Some ua ->
     ua
