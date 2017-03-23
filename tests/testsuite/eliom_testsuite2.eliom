@@ -950,7 +950,7 @@ let servreq =
     ~get_params:unit
     (fun () () ->
        let ri = Eliom_request_info.get_ri () in
-       let ri = Ocsigen_request.update_url (Uri.of_string "tuto/") ri in
+       let ri = Ocsigen_request.update ~uri:(Uri.of_string "tuto/") ri in
        Ocsigen_extensions.compute_result ri >>= fun
          {Ocsigen_response.a_body} ->
        let stream =
@@ -995,10 +995,7 @@ let headers =
     ~code:666
     ~charset:"plopcharset"
 (*    ~content_type:"custom/contenttype" *)
-    ~headers:(Http_headers.add
-                (Http_headers.name "XCustom-header")
-                "This is an example"
-                Http_headers.empty)
+    ~headers:(Cohttp.Header.init_with "XCustom-header" "This is an example")
     ~path:["httpheaders"]
     ~get_params:unit
     (fun () () ->
