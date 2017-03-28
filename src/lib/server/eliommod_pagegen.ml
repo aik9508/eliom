@@ -418,7 +418,7 @@ let gen is_eliom_extension sitedata = function
                  do_redirection
                    (Ocsigen_header.Name.of_string
                       Eliom_common.half_xhr_redir_header)
-                   `OK
+                   `No_content
                    uri
                | e -> Lwt.fail e)
   in

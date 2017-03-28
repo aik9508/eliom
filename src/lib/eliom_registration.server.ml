@@ -1506,7 +1506,7 @@ module Redirection_base = struct
              Eliom_common.half_xhr_redir_header)
           uri
       in
-      result_of_content ?charset ?content_type ~status:`OK ~headers
+      result_of_content ?charset ?content_type ~status:`No_content ~headers
         (Cohttp.Body.empty :> Cohttp_lwt_body.t)
 
 end
