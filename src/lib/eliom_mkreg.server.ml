@@ -118,8 +118,7 @@ let check_process_redir sp f param =
                   (Ocsigen_request.original_full_path_string ri)
                   ~sep:"?"
                   (Eliom_parameter.construct_params_string
-                     (Eliom_common.flatten_get_params
-                        (Ocsigen_request.get_params ri)))
+                     (Ocsigen_request.get_params_flat ri))
                   )))]
   (* We do not put hostname and port.
      It is ok with half or full xhr redirections. *)
@@ -136,7 +135,7 @@ let send_with_cookies
     ?content_type
     ?headers
     content =
-  let%lwt ({ Ocsigen_response.a_response ; a_cookies } as result) =
+  let%lwt result =
     pages.send
       ?options
       ?charset
@@ -145,6 +144,7 @@ let send_with_cookies
       ?headers
       content
   in
+  let response, _ = Ocsigen_response.to_cohttp result in
   let%lwt () = check_process_redir sp check_after result in
   let%lwt tab_cookies =
     Eliommod_cookies.compute_cookies_to_send
@@ -156,15 +156,15 @@ let send_with_cookies
   let response =
     let headers =
       Cohttp.Header.add
-        (Cohttp.Response.headers a_response)
+        (Cohttp.Response.headers response)
         Eliom_common_base.set_tab_cookies_header_name
         (Eliommod_cookies.cookieset_to_json tab_cookies)
     in
-    { a_response with Cohttp.Response.headers }
+    { response with Cohttp.Response.headers }
   and cookies =
     Ocsigen_cookies.add_cookies
       (Eliom_request_info.get_user_cookies ())
-      a_cookies
+      (Ocsigen_response.cookies result)
   in
   Lwt.return (Ocsigen_response.update result ~cookies ~response)
 
@@ -225,8 +225,7 @@ let register_aux pages
                           ~sp
                           sgpt
                           (Some (Lwt.return
-                                   (Eliom_common.flatten_get_params
-                                      (Ocsigen_request.get_params ri))))
+                                   (Ocsigen_request.get_params_flat ri)))
                           (Some (Lwt.return []))
                           nosuffixversion
                           suff
@@ -397,8 +396,7 @@ let register_aux pages
                            ~sp
                            (S.get_params_type service)
                            (Some (Lwt.return
-                                    (Eliom_common.flatten_get_params
-                                       (Ocsigen_request.get_params ri))))
+                                    (Ocsigen_request.get_params_flat ri)))
                            (Some (Lwt.return []))
                            false
                            None

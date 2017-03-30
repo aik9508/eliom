@@ -47,7 +47,7 @@ let result_of_content ?charset ?content_type ?headers ?status body =
       headers
   in
   let response = Cohttp.Response.make ?status ?headers () in
-  Lwt.return (Ocsigen_response.make ~body ~response ())
+  Lwt.return (Ocsigen_response.make ~body response)
 
 module Result_types :
 sig
@@ -271,22 +271,11 @@ module Action_base = struct
     res
 
   let update_request ri si cookies_override =
-    let get_params_override =
-      Eliom_common.unflatten_get_params
-        si.Eliom_common.si_other_get_params
-    in
     Ocsigen_request.update ri
-      ~get_params_override
-      ~post_data_override:None
-      ~request:
-        { (Ocsigen_request.request ri)
-          with Cohttp.Request.meth = `GET }
+      ~post_data:None
+      ~meth:`GET
       ~cookies_override
-      ~uri:(
-        Uri.with_query
-          (Ocsigen_request.uri ri)
-          get_params_override
-      )
+      ~get_params_flat:si.Eliom_common.si_other_get_params
 
   let send
       ?(options = `Reload) ?charset ?(code = 204)
@@ -332,10 +321,7 @@ module Action_base = struct
       | Eliom_common.RNa_no,
         (Eliom_common.RAtt_no, Eliom_common.RAtt_no),
         `GET ->
-        Lwt.return @@
-        Ocsigen_response.make
-          ~response:(Cohttp.Response.make ())
-          ()
+        Lwt.return (Ocsigen_response.make (Cohttp.Response.make ()))
       | _ ->
         let all_cookie_info = sp.Eliom_common.sp_cookie_info in
         let%lwt ric =
@@ -474,7 +460,7 @@ let appl_self_redirect send page =
       in
       Cohttp.Response.make ~headers ()
     in
-    Ocsigen_response.make ~response ()
+    Ocsigen_response.make response
     |> Result_types.cast_result
     |> Lwt.return
   else
@@ -517,7 +503,7 @@ module File_base = struct
         in
         Cohttp_lwt_unix.Server.respond_file ~headers ~fname ()
       in
-      Lwt.return (Ocsigen_response.make ~body ~response ())
+      Lwt.return (Ocsigen_response.make ~body response)
     | Ocsigen_local_files.RDir _ ->
       (* FIXME COHTTP TRANSITION: implement directories *)
       raise Ocsigen_local_files.Failed_404

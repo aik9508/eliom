@@ -951,11 +951,12 @@ let servreq =
     (fun () () ->
        let ri = Eliom_request_info.get_ri () in
        let ri = Ocsigen_request.update ~uri:(Uri.of_string "tuto/") ri in
-       Ocsigen_extensions.compute_result ri >>= fun
-         {Ocsigen_response.a_body} ->
+       Ocsigen_extensions.compute_result ri >>= fun result ->
        let stream =
-         Ocsigen_stream.of_lwt_stream
-           (Cohttp_lwt_body.to_stream a_body)
+         Ocsigen_response.to_cohttp result
+         |> snd
+         |> Cohttp_lwt_body.to_stream
+         |> Ocsigen_stream.of_lwt_stream
        in
        Ocsigen_stream.string_of_stream (Ocsigen_config.get_maxrequestbodysizeinmemory ()) (Ocsigen_stream.get stream) >>= fun s ->
        (* Here use an XML parser,
@@ -971,11 +972,12 @@ let servreqloop =
     ~get_params:unit
     (fun () () ->
        let ri = Eliom_request_info.get_ri () in
-       Ocsigen_extensions.compute_result ri >>= fun
-         {Ocsigen_response.a_body} ->
+       Ocsigen_extensions.compute_result ri >>= fun result ->
        let stream =
-         Ocsigen_stream.of_lwt_stream
-           (Cohttp_lwt_body.to_stream a_body)
+         Ocsigen_response.to_cohttp result
+         |> snd
+         |> Cohttp_lwt_body.to_stream
+         |> Ocsigen_stream.of_lwt_stream
        in
        Ocsigen_stream.string_of_stream (Ocsigen_config.get_maxrequestbodysizeinmemory ()) (Ocsigen_stream.get stream) >>= fun s ->
        (* Here use an XML parser,

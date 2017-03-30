@@ -37,7 +37,7 @@ let make_response ?headers ~status body =
     let headers = headers_with_content_type headers in
     Cohttp.Response.make ~status ~headers ()
   in
-  Lwt.return (Ocsigen_response.make ~body ~response ())
+  Lwt.return (Ocsigen_response.make ~body response)
 
 (* module Html_content = Ocsigen_senders.Make_XML_Content(Xml)(Html.F) *)
 
@@ -252,7 +252,7 @@ let do_redirection header_id status uri =
         in
         Cohttp.Response.make ~status ~headers ()
       in
-      Lwt.return (Ocsigen_response.make ~response ()))
+      Lwt.return (Ocsigen_response.make response))
 
 let gen is_eliom_extension sitedata = function
 | Ocsigen_extensions.Req_found _ ->
@@ -313,10 +313,10 @@ let gen is_eliom_extension sitedata = function
                  now
                  genfun
                  info
-                 sitedata >>= fun ({ Ocsigen_response.a_response ;
-                                     a_cookies } as res) ->
+                 sitedata >>= fun res ->
 
-               let all_user_cookies = Ocsigen_response.cookies res in
+               let response, _ = Ocsigen_response.to_cohttp res
+               and all_user_cookies = Ocsigen_response.cookies res in
                Eliommod_cookies.compute_cookies_to_send
                  sitedata
                  all_cookie_info
@@ -333,11 +333,11 @@ let gen is_eliom_extension sitedata = function
                    let response =
                      let headers =
                        Cohttp.Header.add
-                         (Cohttp.Response.headers a_response)
+                         (Cohttp.Response.headers response)
                          Eliom_common_base.set_cookie_substitutes_header_name
                          (Eliommod_cookies.cookieset_to_json cookies)
                      in
-                     { a_response with Cohttp.Response.headers }
+                     { response with Cohttp.Response.headers }
                    in
                    Ocsigen_response.update ~response ~cookies res
                  | None ->
@@ -395,8 +395,7 @@ let gen is_eliom_extension sitedata = function
                         true
                       with Not_found ->
                         false)
-                     (Eliom_common.flatten_get_params
-                        (Ocsigen_request.get_params ri.request_info))
+                     (Ocsigen_request.get_params_flat ri.request_info)
                      (List.map fst ripp)
                  in
                  Lwt.return @@

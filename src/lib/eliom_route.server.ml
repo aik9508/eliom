@@ -134,16 +134,9 @@ let unflatten_get_params l =
 
 let drop_most_params ri si =
   Ocsigen_request.update ri
-    ~post_data_override:None
-    ~request:
-      { (Ocsigen_request.request ri)
-        with Cohttp.Request.meth = `GET }
-    ~uri:(
-      Uri.with_query
-        (Ocsigen_request.uri ri)
-        (unflatten_get_params
-           si.Eliom_common.si_other_get_params)
-    )
+    ~post_data:None
+    ~meth:`GET
+    ~get_params_flat:si.Eliom_common.si_other_get_params
 
 let get_page
     now
@@ -206,11 +199,8 @@ let get_page
                             request_info =
                               Ocsigen_request.update
                                 ri.request_info
-                                ~post_data_override:None
-                                ~request:
-                                  { (Ocsigen_request.request
-                                       ri.request_info)
-                                    with Cohttp.Request.meth = `GET }
+                                ~post_data:None
+                                ~meth:`GET
                            } ,
                            {si with
                             Eliom_common.si_nonatt_info=

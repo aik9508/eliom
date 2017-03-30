@@ -917,18 +917,6 @@ type cpi = client_process_info =  {
   cpi_original_full_path : string list;
 } [@@deriving json]
 
-let unflatten_get_params l =
-  let module M = Eliom_lib.String.Table in
-  M.bindings
-    (List.fold_left
-       (fun acc (id, v) ->
-          M.add id (try v :: M.find id acc with Not_found -> [v]) acc)
-       M.empty
-       l)
-
-let flatten_get_params l =
-  List.concat (List.map (fun (s, l) -> List.map (fun v -> s, v) l) l)
-
 let get_session_info req previous_extension_err =
   let req_whole = req
   and ri = req.Ocsigen_extensions.request_info
@@ -1024,15 +1012,15 @@ let get_session_info req previous_extension_err =
   ) in
 
   let post_params, get_params, to_be_considered_as_get =
+    let g = Ocsigen_request.get_params_flat ri in
     try
-      ([],
-       flatten_get_params (Ocsigen_request.get_params ri)
-       @snd (List.assoc_remove
-               to_be_considered_as_get_param_name post_params),
-       true)
+      [],
+       g @ snd (List.assoc_remove
+                  to_be_considered_as_get_param_name post_params),
+      true
     (* It was a POST request to be considered as GET *)
     with Not_found ->
-      (post_params, flatten_get_params (Ocsigen_request.get_params ri), false)
+      post_params, g, false
   in
 
 
@@ -1236,20 +1224,17 @@ let get_session_info req previous_extension_err =
   Keep ri for original values and use si for Eliom's values?
 *)
     Ocsigen_request.update ri
-      ~request:
-        (let request = Ocsigen_request.request ri in
-         if
-           Cohttp.Request.meth request = `HEAD || to_be_considered_as_get
-         then
-           { (Ocsigen_request.request ri) with meth = `GET }
+      ?meth:
+        (if Ocsigen_request.meth ri = `HEAD || to_be_considered_as_get then
+           Some `GET
          else
-           Ocsigen_request.request ri)
+           None)
       (* Here we modify ri, instead of putting service parameters in
          si.  Thus it works better after actions: the request can be
          taken by other extensions, with new parameters.  Initial
          parameters are kept in si.  *)
-      ~get_params_override:(unflatten_get_params get_params)
-      ~post_data_override:(
+      ~get_params_flat:get_params
+      ~post_data:(
         if no_post_param then
           None
         else
@@ -1369,14 +1354,11 @@ let patch_request_info ({Ocsigen_extensions.request_info} as r) =
   | Some _ ->
     { r with
       Ocsigen_extensions.request_info =
-        let get_params_override =
+        let get_params_flat =
           List.remove_assoc nl_get_appl_parameter
-            (Ocsigen_request.get_params request_info)
+            (Ocsigen_request.get_params_flat request_info)
         in
-        Ocsigen_request.update
-          ~get_params_override
-          ~uri:(Uri.remove_query_param u nl_get_appl_parameter)
-          request_info
+        Ocsigen_request.update ~get_params_flat request_info
     }
   | None ->
     r

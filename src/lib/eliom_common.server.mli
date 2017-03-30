@@ -743,9 +743,3 @@ end
 
 (** Raises exception on server, only relevant for client apps *)
 val client_html_file : unit -> string
-
-val unflatten_get_params :
-  (string * string) list -> (string * string list) list
-
-val flatten_get_params :
-  (string * string list) list -> (string * string) list

@@ -484,7 +484,6 @@ end = struct
     signal_update handler
 
   let wait_closed_connection () =
-    let ri = Eliom_request_info.get_ri () in
     let%lwt () =
       Ocsigen_request.connection_closed
         (Eliom_request_info.get_ri ())
