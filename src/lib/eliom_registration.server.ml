@@ -152,20 +152,6 @@ end
 
 module Flow5 = Eliom_mkreg.Make(Flow5_base)
 
-(* FIXME COHTTP TRANSITION
-
-   This was in Ocsigen_http_com. Get rid of Netdate *)
-let gmtdate d =
-  let x = Netdate.mk_mail_date ~zone:0 d in try
-    (*XXX !!!*)
-    let ind_plus =  Bytes.index x '+' in
-    Bytes.set x ind_plus 'G';
-    Bytes.set x (ind_plus + 1) 'M';
-    Bytes.set x (ind_plus + 2) 'T';
-    String.sub x 0 (ind_plus + 3)
-  with Invalid_argument _ | Not_found ->
-    Lwt_log.ign_debug "no +"; x
-
 let add_cache_header cache headers =
   let (<-<) h (n, v) =
     Cohttp.Header.replace h
@@ -183,8 +169,8 @@ let add_cache_header cache headers =
     <-< (Ocsigen_header.Name.cache_control,
          "max-age: " ^ string_of_int duration)
     <-< (Ocsigen_header.Name.expires,
-         gmtdate (Unix.time () +. float_of_int duration))
-
+         Ocsigen_lib.Date.to_string
+           (Unix.time () +. float_of_int duration))
 
 module String_base = struct
 

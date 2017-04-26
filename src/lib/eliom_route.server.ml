@@ -81,7 +81,7 @@ include Eliom_route_base.Make (struct
 
     let handle_directory (r, _, _, _, _) =
       Lwt.fail @@
-      Ocsigen_extensions.Ocsigen_Is_a_directory
+      Ocsigen_extensions.Ocsigen_is_dir
         (Ocsigen_extensions.new_url_of_directory_request r)
 
     let get_number_of_reloads () =
