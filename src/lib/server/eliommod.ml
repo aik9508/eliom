@@ -666,7 +666,7 @@ let gen_nothing () _ = Lwt.return Ocsigen_extensions.Ext_do_nothing
 let default_module_action _ = failwith "default_module_action"
 
 (** Parsing of config file for each site: *)
-let parse_config hostpattern conf_info site_dir =
+let fun_site _ hostpattern conf_info site_dir =
 (*--- if we put the following line here: *)
   let sitedata = new_sitedata hostpattern site_dir conf_info in
 (*--- then there is one service tree for each <site> *)
@@ -880,9 +880,9 @@ let parse_config hostpattern conf_info site_dir =
 (*****************************************************************************)
 (** extension registration *)
 let () =
-  register_extension
+  register
     ~name:"eliom"
-    ~fun_site:parse_config
+    ~fun_site
     ~end_init
     ~exn_handler:handle_init_exn
     ~init_fun:parse_global_config
